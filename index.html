@@ -252,6 +252,11 @@
 </section>
 
 <!-- ============ TRACK ============ -->
+<section id="page-trainers" class="page">
+  <h1>Personal Trainers</h1>
+  <p class="muted" style="font-size:13px">Browse trainers, see their prices, sign up for coaching, and meet them on a live video call. Demo profiles for now, replace them with your real trainers anytime: they're served from the website, so changes go live without an app update.</p>
+  <div id="trainerList"></div>
+</section>
 <section id="page-track" class="page">
   <div style="padding:8px 4px"><h2 class="day">Track</h2><div class="sub">Weigh in, watch the trend, celebrate the trend not the day.</div></div>
   <div class="card">
@@ -332,6 +337,7 @@
   <button class="active" onclick="openTab('home')"><span class="ic">🏠</span>Home</button>
   <button onclick="openTab('journey')"><span class="ic">💉</span>Journey</button>
   <button onclick="openTab('fitness')"><span class="ic">💪</span>Fitness</button>
+  <button onclick="openTab('trainers')"><span class="ic">🧑‍🏫</span>Trainers</button>
   <button onclick="openTab('track')"><span class="ic">📈</span>Track</button>
   <button onclick="openTab('meals')"><span class="ic">🍽️</span>Meals</button>
 </nav>
@@ -389,7 +395,7 @@ let lvlF="all",eqF="all";
 function openTab(p){
   document.querySelectorAll(".page").forEach(el=>el.classList.remove("active"));
   document.getElementById("page-"+p).classList.add("active");
-  const order=["home","journey","fitness","track","meals"];
+  const order=["home","journey","fitness","track","trainers","meals"];
   document.querySelectorAll("nav button").forEach((b,i)=>b.classList.toggle("active",order[i]===p));
   window.scrollTo(0,0);
 }
@@ -605,6 +611,81 @@ function renderAll(){
   document.getElementById("wiDate").value=todayISO;
 }
 renderAll();
+
+const TRAINERS=[
+ {id:"sarah",name:"Sarah Whitfield",where:"Leeds",focus:"Strength & GLP-1 support",bio:"10 years coaching, specialises in training alongside GLP-1 medication. Beginners welcome.",pt:45,coach:160,room:"glp1life-sarah"},
+ {id:"james",name:"James Okafor",where:"Manchester",focus:"Body recomposition & boxing",bio:"Ex-amateur boxer. Builds beginner-to-advanced programmes around your dose schedule.",pt:50,coach:180,room:"glp1life-james"},
+ {id:"priya",name:"Priya Nair",where:"Birmingham",focus:"Mobility & post-pregnancy",bio:"Low-impact specialist. Gentle progressions, 10-15 minute sessions that fit around life.",pt:40,coach:140,room:"glp1life-priya"}
+];
+function renderTrainers(){
+ const el=document.getElementById("trainerList");
+ el.innerHTML=TRAINERS.map(t=>`
+  <div class="card">
+   <div style="display:flex;justify-content:space-between;align-items:baseline">
+    <h3>${t.name}</h3><span class="chip on" style="margin-left:8px">${t.where}</span>
+   </div>
+   <div class="muted" style="font-size:13px">${t.focus}</div>
+   <p style="font-size:14px;margin:8px 0">${t.bio}</p>
+   <div class="card" style="background:#F4F7F4;margin:8px 0">
+    <b>1:1 session £${t.pt}</b> per hour &nbsp;·&nbsp; <b>Coaching £${t.coach}</b>/month (plan + weekly video check-ins)
+   </div>
+   <div style="display:flex;gap:8px">
+    <button class="btn btn-primary" style="flex:1" onclick="openSignup('${t.id}')">Sign up</button>
+    <button class="btn btn-ghost" style="flex:1" onclick="startCall('${t.id}')">Live video call</button>
+   </div>
+  </div>`).join("");
+}
+function openSignup(id){
+ const t=TRAINERS.find(x=>x.id===id);
+ const el=document.createElement("div");
+ el.className="modal";el.id="ptModal";
+ el.onclick=e=>{if(e.target===el)el.remove()};
+ el.innerHTML=`<div class="modal-inner" style="max-height:90%;overflow:auto">
+  <div class="body">
+   <div style="font-weight:800;font-size:16px">Sign up with ${t.name}</div>
+   <div class="muted" style="font-size:13px;margin:4px 0 12px">Choose your plan and leave your details.</div>
+   <label class="muted" style="font-size:12px">Your name</label>
+   <input id="ptName" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+   <label class="muted" style="font-size:12px">Email</label>
+   <input id="ptEmail" type="email" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+   <label class="muted" style="font-size:12px">Plan</label>
+   <select id="ptPlan" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+    <option value="pt">1:1 session, £${t.pt} per session</option>
+    <option value="coach">Monthly coaching, £${t.coach}/month</option>
+   </select>
+   <label class="muted" style="font-size:12px">Your goal</label>
+   <textarea id="ptGoal" rows="3" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box"></textarea>
+   <button class="btn btn-primary" style="width:100%" onclick="submitSignup('${t.id}')">Send sign-up</button>
+  </div></div>`;
+ document.body.appendChild(el);
+}
+function submitSignup(id){
+ const t=TRAINERS.find(x=>x.id===id);
+ const rec={trainer:t.name,plan:document.getElementById("ptPlan").value,
+  name:document.getElementById("ptName").value.trim(),email:document.getElementById("ptEmail").value.trim(),
+  goal:document.getElementById("ptGoal").value.trim(),at:new Date().toISOString()};
+ if(!rec.name||!rec.email){alert("Please add your name and email.");return}
+ const all=JSON.parse(localStorage.getItem("rtl-pt-signups")||"[]");all.push(rec);
+ localStorage.setItem("rtl-pt-signups",JSON.stringify(all));
+ document.getElementById("ptModal").remove();
+ const el=document.createElement("div");el.className="modal";
+ el.innerHTML=`<div class="modal-inner"><div class="body">
+  <div style="font-weight:800;font-size:16px">You're on the list ✓</div>
+  <p style="font-size:14px">${t.name} has your details and will be in touch at ${rec.email} to arrange your ${rec.plan==="coach"?"monthly coaching plan":"first 1:1 session"}.</p>
+  <button class="btn btn-green" style="width:100%" onclick="startCall('${t.id}');this.closest('.modal').remove()">Start intro video call now</button>
+  <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="this.closest('.modal').remove()">Close</button>
+ </div></div>`;
+ el.onclick=e=>{if(e.target===el)el.remove()};
+ document.body.appendChild(el);
+}
+function startCall(id){
+ const t=TRAINERS.find(x=>x.id===id);
+ if(confirm("Start your live video call with "+t.name+"? Your camera and microphone will be used.")){
+  window.location.href="https://meet.jit.si/"+t.room;
+ }
+}
+renderTrainers();
+
 </script>
 </body>
 </html>
