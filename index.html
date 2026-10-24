@@ -66,6 +66,7 @@
   .lvl-b{background:var(--green-soft);color:var(--green)}
   .lvl-i{background:#FFF3D6;color:#B07E12}
   .lvl-a{background:#FDE4E4;color:#C0392B}
+  .lvl-p{background:#F3E7FF;color:#7C3AED}
   .done-tick{margin-left:auto;color:var(--green);font-weight:800;font-size:18px}
   .modal{position:fixed;inset:0;background:rgba(20,10,35,.6);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
   .modal.open{display:flex}
@@ -108,7 +109,7 @@
 
 <main>
 <!-- ============ HOME ============ -->
-<section id="page-home" class="page active">
+<section id="page-home" class="page active"><div style="text-align:right;margin-bottom:4px"><button class="btn btn-ghost btn-sm" onclick="openAccountModal()">Sign in</button></div>
   <div style="padding:0 4px"><h2 class="day" id="greeting">Good morning</h2>
   <div class="sub" id="greetingSub">You're doing great! Keep going.</div></div>
 
@@ -324,6 +325,7 @@
     <div class="field"><label>Protein target</label><input type="number" id="setProt" placeholder="grams/day" min="0" style="flex:0 0 120px"></div>
     <button class="btn btn-primary" onclick="saveSettings()">Save</button>
   </div>
+  <div class="card" id="accountCard"></div>
   <div class="card">
     <h3>Reset</h3>
     <div class="note">All data lives on this device only.</div>
@@ -376,6 +378,7 @@ const byDate=k=>S[k]&&S[k].find(x=>x.d===todayISO);
 const latestWeight=()=>S.weights.length?S.weights[S.weights.length-1].lb:0;
 const prettyDate=isoDate=>isoDate?(new Date(isoDate+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})):"";
 
+/* Weekly lineup: fully replaced every week by the GLP1Life weekly refresh */
 const VIDEOS=[
  {id:"QNpAcIhmVFE",t:"10 Min Beginner Full Body (Low Effort) - All Standing",lvl:"b",eq:"none",len:"11:50",ch:"Rise & Flow"},
  {id:"5ObKLn0GOHw",t:"10 Min Low Impact Full Body - Beginners",lvl:"b",eq:"none",len:"11:17",ch:"The Body Coach"},
@@ -388,7 +391,8 @@ const VIDEOS=[
  {id:"j6uyuZYiTGk",t:"15 Min Full Body HIIT - All Standing, No Repeats",lvl:"a",eq:"none",len:"17:41",ch:"Move With Mia"},
  {id:"Qngi1A80X0A",t:"15 Min Intense HIIT - Burn Fat",lvl:"a",eq:"none",len:"15:36",ch:"Train With Tash"},
  {id:"1skBf6h2ksI",t:"15 Min Full Body HIIT - No Equipment",lvl:"a",eq:"none",len:"15:29",ch:"Pamela Reif"},
- {id:"__YioDJvUA8",t:"15 Min Advanced HIIT - No Equipment",lvl:"a",eq:"none",len:"16:57",ch:"Natacha Oceane"}
+ {id:"__YioDJvUA8",t:"15 Min Advanced HIIT - No Equipment",lvl:"a",eq:"none",len:"16:57",ch:"Natacha Oceane"},
+ {id:"rRugP_hkkE0",t:"20 Min HIIT Dumbbell - Full Body",lvl:"a",eq:"db",len:"26:02",ch:"Caroline Girvan",prem:true}
 ];
 let lvlF="all",eqF="all";
 
@@ -525,16 +529,20 @@ function renderVideos(){
       return '<div class="vid" onclick="openVideo(\''+v.id+'\')">'+
         '<img src="https://i.ytimg.com/vi/'+v.id+'/hqdefault.jpg" alt="">'+
         '<div style="flex:1"><div class="t">'+v.t+'</div>'+
-        '<div class="m"><span class="'+p[0]+'">'+p[1]+'</span>'+v.len+' · '+v.ch+'</div></div>'+
+        '<div class="m">'+(v.prem?'<span class="lvl lvl-p">Premium</span>':'<span class="'+p[0]+'">'+p[1]+'</span>')+v.len+' · '+v.ch+'</div></div>'+
         (done.has(v.id)?'<span class="done-tick">✓</span>':'')+'</div>';
     }).join("");
 }
 let curVid=null;
 function openVideo(id){
+  const vv=VIDEOS.find(x=>x.id===id);
+  if(vv&&vv.prem&&!isFull()){
+    alert("This is this week's premium workout, for Full members (£5/month). Free members get every other workout. Upgrade in the Account section.");
+    return;
+  }
+  recordPlay(id);
   curVid=VIDEOS.find(v=>v.id===id);
   document.getElementById("vidFrame").src="https://www.youtube.com/embed/"+id+"?autoplay=1";
-  document.getElementById("vidTitle").textContent=curVid.t;
-  document.getElementById("vidMeta").textContent=curVid.len+" · "+curVid.ch;
   document.getElementById("vidModal").classList.add("open");
 }
 function closeVideo(){document.getElementById("vidModal").classList.remove("open");document.getElementById("vidFrame").src="";}
@@ -685,6 +693,128 @@ function startCall(id){
  }
 }
 renderTrainers();
+
+
+// ---- Accounts & membership ----
+let ACCOUNT=JSON.parse(localStorage.getItem("rtl-account")||"null");
+function saveAcc(){localStorage.setItem("rtl-account",JSON.stringify(ACCOUNT));renderAccount();}
+function weekKey(){const d=new Date();const onejan=new Date(d.getFullYear(),0,1);return d.getFullYear()+"w"+Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);}
+function playsThisWeek(){const k="rtl-plays-"+weekKey();return JSON.parse(localStorage.getItem(k)||"[]");}
+function recordPlay(id){const p=playsThisWeek();if(!p.includes(id))p.push(id);localStorage.setItem("rtl-plays-"+weekKey(),JSON.stringify(p));}
+function isFull(){return ACCOUNT&&(ACCOUNT.tier==="full"||ACCOUNT.tier==="pt");}
+function renderAccount(){
+ const el=document.getElementById("accountCard");if(!el)return;
+ if(!ACCOUNT){el.innerHTML=`<h3>Account</h3><div class="muted" style="font-size:13px">Free members get every weekly workout. Full membership £5/month adds this week's premium workout and live trainer calls; personal trainers are extra.</div>
+  <button class="btn btn-primary" style="margin-top:8px" onclick="openAccountModal()">Sign in or create account</button>`;}
+ else if(ACCOUNT.tier==="full"){el.innerHTML=`<h3>Account</h3><div class="muted" style="font-size:13px">${ACCOUNT.email}</div><span class="chip on">Full membership · £5/month</span>`;}
+ else if(ACCOUNT.tier==="pt"){el.innerHTML=`<h3>Trainer account</h3><div class="muted" style="font-size:13px">${ACCOUNT.email}</div><span class="chip on">Trainer · profile pending approval</span><div class="note" style="margin-top:6px">Your profile will appear in the Trainers tab once approved.</div>`;}
+ else {el.innerHTML=`<h3>Account</h3><div class="muted" style="font-size:13px">${ACCOUNT.email} · Free plan (all weekly workouts)</div>
+  <button class="btn btn-green btn-sm" style="margin-top:8px" onclick="upgradeFull()">Upgrade to Full — £5/month</button>`;}
+}
+function openAccountModal(){
+ const el=document.createElement("div");el.className="modal";el.id="accModal";
+ el.onclick=e=>{if(e.target===el)el.remove()};
+ el.innerHTML=`<div class="modal-inner"><div class="body">
+  <div style="font-weight:800;font-size:16px">Join GLP1Life</div>
+  <label class="muted" style="font-size:12px">Email</label>
+  <input id="accEmail" type="email" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+  <label class="muted" style="font-size:12px">Password</label>
+  <input id="accPass" type="password" style="width:100%;padding:10px;margin:4px 0 12px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+  <button class="btn btn-primary" style="width:100%" onclick="createAccount('free')">Create free account</button>
+  <button class="btn btn-green" style="width:100%;margin-top:8px" onclick="createAccount('full')">Create full membership — £5/month</button>
+  <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="createAccount('pt')">I'm a personal trainer — join as a trainer</button>
+  <div class="note" style="margin-top:10px">Accounts stay on this device for now; billing and sign-in across devices come with the live service.</div>
+ </div></div>`;
+ document.body.appendChild(el);
+}
+function createAccount(tier){
+ const email=document.getElementById("accEmail").value.trim();
+ if(!email||email.indexOf("@")<0){alert("Please enter your email.");return}
+ ACCOUNT={email:email,tier:tier};saveAcc();
+ document.getElementById("accModal").remove();
+ if(tier==="full"){alert("Welcome to Full membership! Everything is unlocked. Billing goes live with the public launch.");}
+ if(tier==="pt"){alert("Trainer account created. Your profile is pending approval.");}
+}
+function upgradeFull(){
+ if(!ACCOUNT){openAccountModal();return}
+ ACCOUNT.tier="full";saveAcc();alert("You're on Full membership — everything unlocked. £5/month billing goes live with the public launch.");
+}
+// ---- Trainers ----
+const TRAINERS=[
+ {id:"sarah",name:"Sarah Whitfield",where:"Leeds",focus:"Strength & GLP-1 support",bio:"10 years coaching, specialises in training alongside GLP-1 medication. Beginners welcome.",pt:45,coach:160,room:"glp1life-sarah"},
+ {id:"james",name:"James Okafor",where:"Manchester",focus:"Body recomposition & boxing",bio:"Ex-amateur boxer. Builds beginner-to-advanced programmes around your dose schedule.",pt:50,coach:180,room:"glp1life-james"},
+ {id:"priya",name:"Priya Nair",where:"Birmingham",focus:"Mobility & post-pregnancy",bio:"Low-impact specialist. Gentle progressions, 10-15 minute sessions that fit around life.",pt:40,coach:140,room:"glp1life-priya"}
+];
+function renderTrainers(){
+ const el=document.getElementById("trainerList");
+ el.innerHTML=TRAINERS.map(t=>`
+  <div class="card">
+   <div style="display:flex;justify-content:space-between;align-items:baseline">
+    <h3>${t.name}</h3><span class="chip on" style="margin-left:8px">${t.where}</span>
+   </div>
+   <div class="muted" style="font-size:13px">${t.focus}</div>
+   <p style="font-size:14px;margin:8px 0">${t.bio}</p>
+   <div class="card" style="background:#F4F7F4;margin:8px 0">
+    <b>1:1 session £${t.pt}</b> per hour &nbsp;·&nbsp; <b>Coaching £${t.coach}</b>/month (plan + weekly video check-ins)
+   </div>
+   <div style="display:flex;gap:8px">
+    <button class="btn btn-primary" style="flex:1" onclick="openSignup('${t.id}')">Sign up</button>
+    <button class="btn btn-ghost" style="flex:1" onclick="startCall('${t.id}')">Live video call</button>
+   </div>
+  </div>`).join("");
+}
+function openSignup(id){
+ const t=TRAINERS.find(x=>x.id===id);
+ const el=document.createElement("div");
+ el.className="modal";el.id="ptModal";
+ el.onclick=e=>{if(e.target===el)el.remove()};
+ el.innerHTML=`<div class="modal-inner" style="max-height:90%;overflow:auto">
+  <div class="body">
+   <div style="font-weight:800;font-size:16px">Sign up with ${t.name}</div>
+   <div class="muted" style="font-size:13px;margin:4px 0 12px">Choose your plan and leave your details.</div>
+   <label class="muted" style="font-size:12px">Your name</label>
+   <input id="ptName" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+   <label class="muted" style="font-size:12px">Email</label>
+   <input id="ptEmail" type="email" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+   <label class="muted" style="font-size:12px">Plan</label>
+   <select id="ptPlan" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box">
+    <option value="pt">1:1 session, £${t.pt} per session</option>
+    <option value="coach">Monthly coaching, £${t.coach}/month</option>
+   </select>
+   <label class="muted" style="font-size:12px">Your goal</label>
+   <textarea id="ptGoal" rows="3" style="width:100%;padding:10px;margin:4px 0 10px;border:1px solid #DDD;border-radius:10px;box-sizing:border-box"></textarea>
+   <button class="btn btn-primary" style="width:100%" onclick="submitSignup('${t.id}')">Send sign-up</button>
+  </div></div>`;
+ document.body.appendChild(el);
+}
+function submitSignup(id){
+ const t=TRAINERS.find(x=>x.id===id);
+ const rec={trainer:t.name,plan:document.getElementById("ptPlan").value,
+  name:document.getElementById("ptName").value.trim(),email:document.getElementById("ptEmail").value.trim(),
+  goal:document.getElementById("ptGoal").value.trim(),at:new Date().toISOString()};
+ if(!rec.name||!rec.email){alert("Please add your name and email.");return}
+ const all=JSON.parse(localStorage.getItem("rtl-pt-signups")||"[]");all.push(rec);
+ localStorage.setItem("rtl-pt-signups",JSON.stringify(all));
+ document.getElementById("ptModal").remove();
+ const el=document.createElement("div");el.className="modal";
+ el.innerHTML=`<div class="modal-inner"><div class="body">
+  <div style="font-weight:800;font-size:16px">You're on the list ✓</div>
+  <p style="font-size:14px">${t.name} has your details and will be in touch at ${rec.email} to arrange your ${rec.plan==="coach"?"monthly coaching plan":"first 1:1 session"}.</p>
+  <button class="btn btn-green" style="width:100%" onclick="startCall('${t.id}');this.closest('.modal').remove()">Start intro video call now</button>
+  <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="this.closest('.modal').remove()">Close</button>
+ </div></div>`;
+ el.onclick=e=>{if(e.target===el)el.remove()};
+ document.body.appendChild(el);
+}
+function startCall(id){
+ const t=TRAINERS.find(x=>x.id===id);
+ if(ACCOUNT&&ACCOUNT.tier==="pt"){alert("Trainer account: live calls open to your clients once your profile is approved.");return}
+ if(!isFull()){alert("Live video calls are part of Full membership (£5/month). Personal trainer sessions are arranged with your trainer and priced separately.");return}
+ if(confirm("Start your live video call with "+t.name+"? Your camera and microphone will be used.")){
+  window.location.href="https://meet.jit.si/"+t.room;
+ }
+}
+renderTrainers();renderAccount();
 
 </script>
 </body>
